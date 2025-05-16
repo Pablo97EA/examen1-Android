@@ -28,6 +28,8 @@ import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import android.content.Intent
+import androidx.compose.ui.platform.LocalContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,10 +50,17 @@ fun CourseScreen(viewModel: CourseViewModel) {
     val courses by viewModel.courses.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
     var selectedCourse by remember { mutableStateOf<Course?>(null) }
+    val context = LocalContext.current
 
-    // Correct method call
     LaunchedEffect(Unit) {
         viewModel.fetchCourses()
+    }
+
+    fun navigateToStudents(courseId: Int) {
+        val intent = Intent(context, StudentsActivity::class.java).apply {
+            putExtra("COURSE_ID", courseId)
+        }
+        context.startActivity(intent)
     }
 
     Scaffold(
@@ -72,7 +81,7 @@ fun CourseScreen(viewModel: CourseViewModel) {
                 modifier = Modifier
                     .padding(16.dp)
                     .fillMaxWidth(),
-                onClick = { viewModel.fetchCourses() } // fixed method name
+                onClick = { viewModel.fetchCourses() }
             ) {
                 Text("Refresh Courses")
             }
@@ -80,13 +89,16 @@ fun CourseScreen(viewModel: CourseViewModel) {
             LazyColumn(modifier = Modifier.padding(16.dp)) {
                 items(courses) { course ->
                     CourseItem(
-                        course,
+                        course = course,
                         onEdit = {
                             selectedCourse = course
                             showDialog = true
                         },
                         onDelete = {
                             viewModel.deleteCourse(course.id)
+                        },
+                        onView = { courseId ->
+                            navigateToStudents(courseId)
                         }
                     )
                 }
@@ -100,24 +112,24 @@ fun CourseScreen(viewModel: CourseViewModel) {
             onDismiss = { showDialog = false },
             onSave = { course, uri ->
                 Log.i("CourseScreen", "onSave called with course=$course, uri=$uri")
-
                 if (course.id == null) {
-                    // Si no tiene id, es nuevo curso
                     viewModel.addCourse(course, uri)
                 } else {
-                    // Ya tiene id, actualizamos
                     viewModel.updateCourse(course, uri)
                 }
-
                 showDialog = false
             }
         )
-
     }
 }
 
 @Composable
-fun CourseItem(course: Course, onEdit: (Course) -> Unit, onDelete: (Course) -> Unit) {
+fun CourseItem(
+    course: Course,
+    onEdit: (Course) -> Unit,
+    onDelete: (Course) -> Unit,
+    onView: (Int) -> Unit // Nueva función para manejar el click en "Ver curso"
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -125,7 +137,6 @@ fun CourseItem(course: Course, onEdit: (Course) -> Unit, onDelete: (Course) -> U
         elevation = CardDefaults.elevatedCardElevation(6.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Solo muestra imagen si existe imageUrl
             if (!course.imageUrl.isNullOrBlank()) {
                 val imageUrl = Constants.API_BASE_URL + course.imageUrl.removePrefix("/")
                 Image(
@@ -146,17 +157,21 @@ fun CourseItem(course: Course, onEdit: (Course) -> Unit, onDelete: (Course) -> U
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                TextButton(onClick = { onEdit(course) }) {
-                    Text("Edit")
+                Button(onClick = { onView(course.id!!) }) {
+                    Text("Ver Curso")
                 }
-                TextButton(onClick = { onDelete(course) }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                Row {
+                    TextButton(onClick = { onEdit(course) }) {
+                        Text("Edit")
+                    }
+                    TextButton(onClick = { onDelete(course) }) {
+                        Text("Delete", color = MaterialTheme.colorScheme.error)
+                    }
                 }
             }
         }
     }
 }
-
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -234,6 +249,9 @@ fun CourseDialog(course: Course?, onDismiss: () -> Unit, onSave: (Course, Uri?) 
 fun CourseScreenPreview() {
     Examen1Theme {
         val dummyCourse = Course(1, "Math 101", "Mon/Wed 10am", "Basic math concepts", "Prof. Smith", null)
-        CourseItem(dummyCourse, onEdit = {}, onDelete = {})
+        CourseItem(
+            dummyCourse, onEdit = {}, onDelete = {},
+            onView = TODO()
+        )
     }
 }
