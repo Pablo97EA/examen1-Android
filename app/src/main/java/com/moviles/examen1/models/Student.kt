@@ -6,5 +6,6 @@ data class Student(
     val email: String,
     val phone: String,
     val courseId: Int,
-    val course: Course
+    val course: Course?,
+    val courseName: String?=null
 )

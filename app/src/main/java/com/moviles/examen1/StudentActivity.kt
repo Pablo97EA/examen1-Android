@@ -1,5 +1,6 @@
 package com.moviles.examen1
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -217,6 +218,8 @@ fun StudentCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val context = LocalContext.current
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -237,6 +240,7 @@ fun StudentCard(
                 style = MaterialTheme.typography.bodyMedium
             )
             Spacer(modifier = Modifier.height(8.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -253,9 +257,24 @@ fun StudentCard(
                     Text("Eliminar")
                 }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // ✅ Nuevo botón para ver detalle del estudiante
+            Button(
+                onClick = {
+                    val intent = Intent(context, StudentDetailActivity::class.java)
+                    intent.putExtra("STUDENT_ID", student.id)
+                    context.startActivity(intent)
+                },
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text("Detalle Estudiante Aquí")
+            }
         }
     }
 }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentDialog(

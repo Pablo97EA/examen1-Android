@@ -48,7 +48,7 @@ class StudentViewModel : ViewModel() {
                 Log.i("StudentViewModel", "Created student: $response")
 
                 // Enviar notificación local
-                val notificationMessage = "Estudiante: ${student.name}, se ha inscrito al curso: ${student.course.name}"
+                val notificationMessage = "Estudiante: ${student.name}, se ha inscrito al curso: ${student.courseName}"
                 NotificationService.showNotification(
                     context,
                     "Nuevo estudiante registrado",

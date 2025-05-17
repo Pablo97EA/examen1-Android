@@ -44,6 +44,16 @@
                 android:value=".MainActivity" />
         </activity>
 
+        <activity
+            android:name=".StudentDetailActivity"
+            android:exported="false"
+            android:label="Detalle del Estudiante"
+            android:parentActivityName=".StudentsActivity">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".StudentsActivity" />
+        </activity>
+
         <!-- Servicio de mensajería de Firebase -->
         <service
             android:name=".services.MyFirebaseMessagingService"
