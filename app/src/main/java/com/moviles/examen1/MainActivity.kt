@@ -113,7 +113,7 @@ fun CourseScreen(viewModel: CourseViewModel) {
             onSave = { course, uri ->
                 Log.i("CourseScreen", "onSave called with course=$course, uri=$uri")
                 if (course.id == null) {
-                    viewModel.addCourse(course, uri)
+                    viewModel.addCourse(course, uri, context)
                 } else {
                     viewModel.updateCourse(course, uri)
                 }
@@ -255,3 +255,5 @@ fun CourseScreenPreview() {
         )
     }
 }
+
+

@@ -17,13 +17,19 @@ class StudentViewModel : ViewModel() {
     private val _studentsByCourse = MutableStateFlow<List<Student>>(emptyList())
     val studentsByCourse: StateFlow<List<Student>> get() = _studentsByCourse
 
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> get() = _isLoading
+
     fun fetchStudents() {
         viewModelScope.launch {
             try {
+                _isLoading.value = true
                 _students.value = RetrofitInstance.api.getStudents()
                 Log.i("StudentViewModel", "Fetched all students: ${_students.value}")
             } catch (e: Exception) {
                 Log.e("StudentViewModel", "Error fetching students: ${e.message}")
+            } finally {
+                _isLoading.value = false
             }
         }
     }
@@ -31,68 +37,81 @@ class StudentViewModel : ViewModel() {
     fun fetchStudentsByCourse(courseId: Int) {
         viewModelScope.launch {
             try {
+                _isLoading.value = true
                 _studentsByCourse.value = RetrofitInstance.api.getStudentsByCourse(courseId)
-                Log.i("StudentViewModel", "Fetched students for course $courseId: ${_studentsByCourse.value}")
+                Log.i("StudentViewModel", "Fetched students for course $courseId")
             } catch (e: Exception) {
                 Log.e("StudentViewModel", "Error fetching students by course: ${e.message}")
                 _studentsByCourse.value = emptyList()
+            } finally {
+                _isLoading.value = false
             }
         }
     }
 
-    fun createStudent(student: Student) {
+    fun createStudent(student: Student, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
             try {
+                _isLoading.value = true
                 val response = RetrofitInstance.api.createStudent(student)
                 _students.value += response
-                // Actualizar también la lista filtrada si pertenece al mismo curso
                 if (student.courseId == _studentsByCourse.value.firstOrNull()?.courseId) {
                     _studentsByCourse.value += response
                 }
                 Log.i("StudentViewModel", "Created student: $response")
+                onSuccess()
             } catch (e: HttpException) {
                 val errorBody = e.response()?.errorBody()?.string()
-                Log.e("StudentViewModel", "HTTP Error: ${e.message()}, Response Body: $errorBody")
+                Log.e("StudentViewModel", "HTTP Error: ${e.message()}, Body: $errorBody")
             } catch (e: Exception) {
                 Log.e("StudentViewModel", "Error creating student: ${e.message}")
+            } finally {
+                _isLoading.value = false
             }
         }
     }
 
-    fun updateStudent(student: Student) {
+    fun updateStudent(student: Student, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
             try {
+                _isLoading.value = true
                 val updated = RetrofitInstance.api.updateStudent(student.id ?: return@launch, student)
                 _students.value = _students.value.map { if (it.id == updated.id) updated else it }
-                // Actualizar también la lista filtrada si pertenece al mismo curso
                 if (updated.courseId == _studentsByCourse.value.firstOrNull()?.courseId) {
                     _studentsByCourse.value = _studentsByCourse.value.map { if (it.id == updated.id) updated else it }
                 }
                 Log.i("StudentViewModel", "Updated student: $updated")
+                onSuccess()
             } catch (e: Exception) {
                 Log.e("StudentViewModel", "Error updating student: ${e.message}")
+            } finally {
+                _isLoading.value = false
             }
         }
     }
 
-    fun deleteStudent(id: Int) {
+    fun deleteStudent(id: Int, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
             try {
+                _isLoading.value = true
                 RetrofitInstance.api.deleteStudent(id)
                 val deletedStudent = _students.value.find { it.id == id }
                 _students.value = _students.value.filter { it.id != id }
-                // Actualizar también la lista filtrada si pertenece al mismo curso
                 deletedStudent?.let {
                     if (it.courseId == _studentsByCourse.value.firstOrNull()?.courseId) {
                         _studentsByCourse.value = _studentsByCourse.value.filter { student -> student.id != id }
                     }
                 }
                 Log.i("StudentViewModel", "Deleted student ID: $id")
+                onSuccess()
             } catch (e: Exception) {
                 Log.e("StudentViewModel", "Error deleting student: ${e.message}")
+            } finally {
+                _isLoading.value = false
             }
         }
     }
+
     fun clearStudents() {
         _studentsByCourse.value = emptyList()
     }

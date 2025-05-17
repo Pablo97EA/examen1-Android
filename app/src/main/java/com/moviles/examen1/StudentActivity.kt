@@ -1,12 +1,9 @@
 package com.moviles.examen1
 
-import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,11 +11,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.moviles.examen1.models.Student
 import com.moviles.examen1.models.Course
@@ -43,9 +42,16 @@ class StudentsActivity : ComponentActivity() {
 fun StudentsScreen(courseId: Int) {
     val viewModel: StudentViewModel = viewModel()
     val students by viewModel.studentsByCourse.collectAsState()
-    val context = LocalContext.current
+    val isLoading by viewModel.isLoading.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
     var selectedStudent by remember { mutableStateOf<Student?>(null) }
+    val context = LocalContext.current
+
+    LaunchedEffect(showDialog) {
+        if (!showDialog) {
+            selectedStudent = null
+        }
+    }
 
     LaunchedEffect(courseId) {
         if (courseId != -1) {
@@ -56,51 +62,88 @@ fun StudentsScreen(courseId: Int) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Estudiantes del Curso ") },
+                title = { Text("Estudiantes del Curso $courseId") },
                 navigationIcon = {
                     IconButton(onClick = { (context as android.app.Activity).finish() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        selectedStudent = null
-                        showDialog = true
-                    }) {
+                    IconButton(
+                        onClick = {
+                            selectedStudent = null
+                            showDialog = true
+                        },
+                        enabled = !isLoading
+                    ) {
                         Icon(Icons.Default.Add, contentDescription = "Add Student")
                     }
                 }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = {
-                selectedStudent = null
-                showDialog = true
-            }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Student")
+            if (!isLoading) {
+                FloatingActionButton(
+                    onClick = {
+                        selectedStudent = null
+                        showDialog = true
+                    },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Student")
+                }
             }
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
+        Box(modifier = Modifier
+            .padding(padding)
+            .fillMaxSize()
         ) {
             when {
-                students.isEmpty() -> {
-                    Box(
+                isLoading && students.isEmpty() -> {
+                    Column(
                         modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(48.dp)
+                        )
+                    }
+                }
+                students.isEmpty() -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text("No hay estudiantes en este curso")
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = {
+                                selectedStudent = null
+                                showDialog = true
+                            },
+                            enabled = !isLoading
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Agregar Estudiante")
+                        }
                     }
                 }
                 else -> {
                     LazyColumn(
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(students) { student ->
+                        items(
+                            items = students,
+                            key = { it.id ?: 0 }
+                        ) { student ->
                             StudentCard(
                                 student = student,
                                 onEdit = {
@@ -108,30 +151,60 @@ fun StudentsScreen(courseId: Int) {
                                     showDialog = true
                                 },
                                 onDelete = {
-                                    viewModel.deleteStudent(student.id ?: return@StudentCard)
+                                    viewModel.deleteStudent(student.id ?: return@StudentCard) {
+                                        viewModel.fetchStudentsByCourse(courseId)
+                                    }
                                 }
                             )
                         }
                     }
                 }
             }
+
+            if (showDialog) {
+                StudentDialog(
+                    student = selectedStudent,
+                    courseId = courseId,
+                    onDismiss = {
+                        showDialog = false
+                        selectedStudent = null
+                    },
+                    onSave = { student ->
+                        if (student.id == null) {
+                            viewModel.createStudent(student) {
+                                viewModel.fetchStudentsByCourse(courseId)
+                            }
+                        } else {
+                            viewModel.updateStudent(student) {
+                                viewModel.fetchStudentsByCourse(courseId)
+                            }
+                        }
+                        showDialog = false
+                        selectedStudent = null
+                    }
+                )
+            }
         }
     }
+}
 
-    if (showDialog) {
-        StudentDialog(
-            student = selectedStudent,
-            courseId = courseId,
-            onDismiss = { showDialog = false },
-            onSave = { student ->
-                if (student.id == null) {
-                    viewModel.createStudent(student)
-                } else {
-                    viewModel.updateStudent(student)
-                }
-                showDialog = false
-            }
-        )
+@Composable
+fun StudentList(
+    students: List<Student>,
+    onEdit: (Student) -> Unit,
+    onDelete: (Student) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(students) { student ->
+            StudentCard(
+                student = student,
+                onEdit = { onEdit(student) },
+                onDelete = { onDelete(student) }
+            )
+        }
     }
 }
 
@@ -145,9 +218,7 @@ fun StudentCard(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = student.name,
                 style = MaterialTheme.typography.titleLarge
@@ -182,7 +253,6 @@ fun StudentCard(
         }
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentDialog(
@@ -191,55 +261,80 @@ fun StudentDialog(
     onDismiss: () -> Unit,
     onSave: (Student) -> Unit
 ) {
-    var name by remember { mutableStateOf(student?.name ?: "") }
-    var email by remember { mutableStateOf(student?.email ?: "") }
-    var phone by remember { mutableStateOf(student?.phone ?: "") }
+    // Usar rememberSaveable para mantener el estado durante recomposiciones
+    var name by rememberSaveable { mutableStateOf(student?.name ?: "") }
+    var email by rememberSaveable { mutableStateOf(student?.email ?: "") }
+    var phone by rememberSaveable { mutableStateOf(student?.phone ?: "") }
+
+    // Resetear valores cuando cambia el estudiante
+    LaunchedEffect(student) {
+        name = student?.name ?: ""
+        email = student?.email ?: ""
+        phone = student?.phone ?: ""
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (student == null) "Agregar Estudiante" else "Editar Estudiante") },
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        title = {
+            Text(
+                text = if (student == null) "Agregar Estudiante" else "Editar Estudiante",
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        },
         text = {
-            Column(modifier = Modifier.padding(8.dp)) {
+            Column(
+                modifier = Modifier
+                    .padding(8.dp)
+                    .widthIn(min = 300.dp)
+            ) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Nombre") },
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
                     label = { Text("Email") },
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { phone = it },
                     label = { Text("Teléfono") },
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    val updatedStudent = Student(
-                        id = student?.id,
-                        name = name,
-                        email = email,
-                        phone = phone,
-                        courseId = courseId,
-                        course = student?.course ?: Course(null, "", "", "", "", null)
+                    onSave(
+                        Student(
+                            id = student?.id,
+                            name = name,
+                            email = email,
+                            phone = phone,
+                            courseId = courseId,
+                            course = student?.course ?: Course(null, "", "", "", "", null)
+                        )
                     )
-                    onSave(updatedStudent)
                 },
-                enabled = name.isNotBlank() && email.isNotBlank() && phone.isNotBlank()
+                enabled = name.isNotBlank() && email.isNotBlank() && phone.isNotBlank(),
+                modifier = Modifier.padding(8.dp)
             ) {
                 Text("Guardar")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.padding(8.dp)
+            ) {
                 Text("Cancelar")
             }
         }
