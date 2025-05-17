@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Examen1</string>
+    <string name="default_notification_channel_id">fcm_default_channel</string>
+    <string name="default_notification_channel_name">General Notifications</string>
 </resources>
