@@ -1,10 +1,12 @@
 package com.moviles.examen1.viewmodel
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moviles.examen1.models.Student
 import com.moviles.examen1.network.RetrofitInstance
+import com.moviles.examen1.services.NotificationService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -33,6 +35,39 @@ class StudentViewModel : ViewModel() {
             }
         }
     }
+
+    fun createStudent(student: Student, onSuccess: () -> Unit = {}, context: Context) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                val response = RetrofitInstance.api.createStudent(student)
+                _students.value += response
+                if (student.courseId == _studentsByCourse.value.firstOrNull()?.courseId) {
+                    _studentsByCourse.value += response
+                }
+                Log.i("StudentViewModel", "Created student: $response")
+
+                // Enviar notificación local
+                val notificationMessage = "Estudiante: ${student.name}, se ha inscrito al curso: ${student.course.name}"
+                NotificationService.showNotification(
+                    context,
+                    "Nuevo estudiante registrado",
+                    notificationMessage
+                )
+
+                onSuccess()
+            } catch (e: HttpException) {
+                val errorBody = e.response()?.errorBody()?.string()
+                Log.e("StudentViewModel", "HTTP Error: ${e.message()}, Body: $errorBody")
+            } catch (e: Exception) {
+                Log.e("StudentViewModel", "Error creating student: ${e.message}")
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+
 
     fun fetchStudentsByCourse(courseId: Int) {
         viewModelScope.launch {

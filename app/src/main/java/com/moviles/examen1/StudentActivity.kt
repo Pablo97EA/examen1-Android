@@ -23,12 +23,15 @@ import com.moviles.examen1.models.Student
 import com.moviles.examen1.models.Course
 import com.moviles.examen1.ui.theme.Examen1Theme
 import com.moviles.examen1.viewmodel.StudentViewModel
+import com.moviles.examen1.services.NotificationService
 
 class StudentsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val courseId = intent.getIntExtra("COURSE_ID", -1)
+        // Inicializar notificaciones
+        NotificationService.initialize(this)
         setContent {
             Examen1Theme {
                 StudentsScreen(courseId = courseId)
@@ -171,9 +174,9 @@ fun StudentsScreen(courseId: Int) {
                     },
                     onSave = { student ->
                         if (student.id == null) {
-                            viewModel.createStudent(student) {
+                            viewModel.createStudent(student, {
                                 viewModel.fetchStudentsByCourse(courseId)
-                            }
+                            }, context)
                         } else {
                             viewModel.updateStudent(student) {
                                 viewModel.fetchStudentsByCourse(courseId)
