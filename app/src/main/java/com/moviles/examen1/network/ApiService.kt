@@ -2,6 +2,7 @@ package com.moviles.examen1.network
 
 import com.moviles.examen1.models.Course
 import com.moviles.examen1.models.Student
+import okhttp3.MultipartBody
 
 import retrofit2.Response
 import retrofit2.http.*
@@ -14,6 +15,13 @@ interface ApiService {
 
     @POST("api/course")
     suspend fun addCourse(@Body courseDto: Course): Course
+
+    @Multipart
+    @POST("api/course/{id}/upload-image")
+    suspend fun uploadCourseImage(
+        @Path("id") id: Int,
+        @Part file: MultipartBody.Part
+    ): Response<Unit>
 
     @PUT("api/course/{id}")
     suspend fun updateCourse(@Path("id") id: Int?, @Body courseDto: Course): Course

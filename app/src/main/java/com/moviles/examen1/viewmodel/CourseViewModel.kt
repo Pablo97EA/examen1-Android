@@ -73,4 +73,6 @@ class CourseViewModel : ViewModel() {
             }
         }
     }
+
 }
+
