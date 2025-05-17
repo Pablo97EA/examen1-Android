@@ -1,6 +1,6 @@
 Examen1
 App Android desarrollada con Android Studio, para el primer examen del curso de móviles de la UNA
-🚀 Características
+Características
 •	Interfaz moderna con Jetpack Compose / XML 
 •	Consumo de API REST usando Retrofit + OkHttp
 •	Soporte offline con Room (base de datos local)
