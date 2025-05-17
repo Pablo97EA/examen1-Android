@@ -1,18 +1,27 @@
 package com.moviles.examen1.models
 
-data class Course
-    (
-        val id: Int?,
+import androidx.room.ColumnInfo
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 
-        val name:String,
+@Entity(tableName = "courses")
+data class Course(
+    @PrimaryKey(autoGenerate = true)
+    @ColumnInfo(name = "id")
+    val id: Int? = null,
 
-        val schedule: String,
+    @ColumnInfo(name = "name")
+    val name: String,
 
-        val description: String,
+    @ColumnInfo(name = "schedule")
+    val schedule: String,
 
-        val professor: String,
+    @ColumnInfo(name = "description")
+    val description: String,
 
-        val imageUrl: String?
+    @ColumnInfo(name = "professor")
+    val professor: String,
+
+    @ColumnInfo(name = "imageUrl")
+    val imageUrl: String?
 )
-
-

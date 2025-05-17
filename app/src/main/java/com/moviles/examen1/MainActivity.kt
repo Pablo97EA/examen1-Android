@@ -29,7 +29,10 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import com.moviles.examen1.viewmodel.CourseViewModelFactory
+import com.moviles.examen1.data.AppDatabase
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,20 +40,39 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             Examen1Theme {
-                val viewModel: CourseViewModel = viewModel()
+                val context = LocalContext.current
+                val database = AppDatabase.getInstance(context)
+                val courseDao = database.courseDao()
+
+                val viewModel: CourseViewModel = viewModel(
+                    factory = CourseViewModelFactory(courseDao)
+                )
                 CourseScreen(viewModel)
             }
         }
+
     }
-}
+    }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CourseScreen(viewModel: CourseViewModel) {
+    val context = LocalContext.current
+
+    val loadingMessage by viewModel.loadingMessage.collectAsState()
+
+    LaunchedEffect(loadingMessage) {
+        loadingMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            viewModel.clearLoadingMessage()
+        }
+    }
+
     val courses by viewModel.courses.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
     var selectedCourse by remember { mutableStateOf<Course?>(null) }
-    val context = LocalContext.current
+
 
     LaunchedEffect(Unit) {
         viewModel.fetchCourses()
